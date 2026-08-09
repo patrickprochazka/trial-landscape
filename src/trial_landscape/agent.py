@@ -288,41 +288,52 @@ class Agent:
                 delay = min(delay * 2, 60.0)
         raise RuntimeError("unreachable")  # loop always returns or raises
 
-    def ask(self, user_query: str) -> str:
+    def ask(self, user_query: str) -> str | None:
+        """Returns the final answer text, or None if the user interrupted (Ctrl+C)
+        mid-query — the only way to "stop" a step in a synchronous REPL that's
+        blocked on the network, since there's no input loop to type a command into
+        until the current call returns. On interrupt, any partial turn (a tool call
+        sent but not yet answered, etc.) is rolled back so the next question starts
+        from clean, valid history instead of a half-finished exchange."""
+        history_checkpoint = len(self.contents)
         self.contents.append(types.Content(role="user", parts=[types.Part(text=user_query)]))
 
-        for _ in range(MAX_TOOL_ITERATIONS):
-            try:
-                response = self._generate()
-            except errors.ClientError as exc:
-                return f"[Gemini API error {getattr(exc, 'code', '?')}] {exc}"
-            except errors.ServerError as exc:
-                return f"[Gemini server error] {exc}"
+        try:
+            for _ in range(MAX_TOOL_ITERATIONS):
+                try:
+                    response = self._generate()
+                except errors.ClientError as exc:
+                    return f"[Gemini API error {getattr(exc, 'code', '?')}] {exc}"
+                except errors.ServerError as exc:
+                    return f"[Gemini server error] {exc}"
 
-            model_content = response.candidates[0].content if response.candidates else None
-            if model_content is not None:
-                self.contents.append(model_content)
+                model_content = response.candidates[0].content if response.candidates else None
+                if model_content is not None:
+                    self.contents.append(model_content)
 
-            function_calls = response.function_calls or []
-            if not function_calls:
-                text = response.text
-                return text or "(no response text)"
+                function_calls = response.function_calls or []
+                if not function_calls:
+                    text = response.text
+                    return text or "(no response text)"
 
-            response_parts = []
-            for fc in function_calls:
-                self._print_tool_call(fc.name, fc.args or {})
-                result, is_error = execute_tool(self.ctgov, fc.name, fc.args or {})
-                self._print_tool_result(fc.name, result, is_error)
-                response_payload = {"error": result.get("error", str(result))} if is_error else result
-                response_parts.append(
-                    types.Part.from_function_response(name=fc.name, response=response_payload)
-                )
-            # Note: despite some docs suggesting role="tool", the live API rejects it
-            # ("Role 'tool' is not supported... USER, ASSISTANT, ... MODEL, USER.") —
-            # function responses go back as a "user" turn.
-            self.contents.append(types.Content(role="user", parts=response_parts))
+                response_parts = []
+                for fc in function_calls:
+                    self._print_tool_call(fc.name, fc.args or {})
+                    result, is_error = execute_tool(self.ctgov, fc.name, fc.args or {})
+                    self._print_tool_result(fc.name, result, is_error)
+                    response_payload = {"error": result.get("error", str(result))} if is_error else result
+                    response_parts.append(
+                        types.Part.from_function_response(name=fc.name, response=response_payload)
+                    )
+                # Note: despite some docs suggesting role="tool", the live API rejects it
+                # ("Role 'tool' is not supported... USER, ASSISTANT, ... MODEL, USER.") —
+                # function responses go back as a "user" turn.
+                self.contents.append(types.Content(role="user", parts=response_parts))
 
-        return "(stopped after too many function-call rounds — try narrowing your question)"
+            return "(stopped after too many function-call rounds — try narrowing your question)"
+        except KeyboardInterrupt:
+            del self.contents[history_checkpoint:]
+            return None
 
     def render_answer(self, text: str) -> None:
         self.console.print(Panel(Markdown(text), title="[bold green]answer[/]", border_style="green"))

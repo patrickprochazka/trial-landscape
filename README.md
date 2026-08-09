@@ -97,6 +97,7 @@ REPL commands:
 - `/model` — switch models, interactively or via `/model <name>`; `/model refresh` re-scans the catalog (see Model selection above)
 - `/stats` — show ClinicalTrials.gov cache hit/miss counts for the session
 - `/exit` — quit
+- **Ctrl+C mid-answer** — stops the query in progress and returns to the prompt, without exiting the app. Any partial tool-call exchange from the interrupted step is discarded, so the next question starts from clean history.
 
 ## Design notes
 

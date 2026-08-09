@@ -22,6 +22,7 @@ Ask things like:
   [dim]"what's the phase 3 landscape for KRAS G12C inhibitors, recruiting only"[/]
   [dim]"compare trial activity for sotorasib vs adagrasib over the last 2 years"[/]
 Commands: [bold]/reset[/] clear conversation · [bold]/model[/] switch model ([bold]/model refresh[/] re-scan the catalog) · [bold]/stats[/] cache stats · [bold]/exit[/] quit
+Press [bold]Ctrl+C[/] mid-answer to stop that query and return to the prompt.
 """
 
 
@@ -106,6 +107,9 @@ def main() -> None:
             continue
 
         answer = agent.ask(query)
+        if answer is None:
+            console.print("[yellow]interrupted — back to prompt[/]")
+            continue
         agent.render_answer(answer)
 
     console.print("[dim]goodbye[/]")
