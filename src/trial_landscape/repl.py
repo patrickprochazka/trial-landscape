@@ -124,9 +124,11 @@ def main() -> None:
             if not agent.contents:
                 console.print("[dim]nothing to export yet — ask a question first[/]")
                 continue
-            path = query[len("/export"):].strip()
-            if not path:
-                path = f"trial-landscape-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
+            default_filename = f"trial-landscape-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
+            arg = query[len("/export"):].strip()
+            path = os.path.expanduser(arg) if arg else default_filename
+            if os.path.isdir(path):  # folder given with no filename — auto-name inside it
+                path = os.path.join(path, default_filename)
             markdown = export_conversation_markdown(agent.contents, agent.model)
             try:
                 with open(path, "w") as f:
