@@ -102,6 +102,8 @@ REPL commands:
 - `/exit` — quit
 - **Ctrl+C mid-answer** — stops the query in progress and returns to the prompt, without exiting the app. Any partial tool-call exchange from the interrupted step is discarded, so the next question starts from clean history.
 
+Input is handled by [`prompt_toolkit`](https://python-prompt-toolkit.readthedocs.io/) rather than a bare `input()`, which matters for one thing specifically: **pasting a multi-line paragraph works correctly.** A terminal paste is captured as one atomic block (newlines included) — it does not submit early on each line break the way a naive `input()` loop would. Enter submits; **Alt+Enter** (or Escape then Enter) inserts a literal line break if you want to compose a multi-line question by hand. Arrow-up history recall comes along for free too.
+
 ## Design notes
 
 - **Condensed, not raw, function results.** `search_trials` and `aggregate_trials` never return full study records — only the fields needed to identify or count trials. This keeps function-response payloads small so multi-call chains (e.g. comparing two drugs) stay within a reasonable context and token budget.

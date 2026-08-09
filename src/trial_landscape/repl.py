@@ -7,6 +7,9 @@ from datetime import datetime
 
 import pyperclip
 from dotenv import load_dotenv
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.key_binding import KeyBindings
 from rich.console import Console
 
 from trial_landscape.agent import (
@@ -49,7 +52,21 @@ status, or location
   [bold]/stats[/]              ClinicalTrials.gov cache hit/miss counts for this session
   [bold]/exit[/], [bold]/quit[/]        quit
   [bold]Ctrl+C[/]              stop the current query, return to the prompt (doesn't exit)
+  [bold]Alt+Enter[/]           insert a line break without submitting (Enter still submits)
 """
+
+# Pasting a multi-line paragraph is handled correctly out of the box — prompt_toolkit
+# treats a terminal paste as one atomic insertion (newlines included), never as
+# multiple Enter presses, unlike a bare input(). Alt+Enter (sent as Escape then
+# Enter by most terminals) is the one addition: a portable way to insert a literal
+# newline yourself while typing, since Shift+Enter isn't reliably distinguishable
+# from plain Enter across terminals.
+_input_bindings = KeyBindings()
+
+
+@_input_bindings.add("escape", "enter")
+def _insert_newline(event) -> None:
+    event.current_buffer.insert_text("\n")
 
 
 def _switch_model(agent: Agent, requested: str, console: Console, cache: ModelCache) -> None:
@@ -95,9 +112,13 @@ def main() -> None:
     agent = Agent(model=model, client=client, console=console)
     agent.available_models = available_models
 
+    # A session (not a one-off prompt() call) so input history persists across
+    # questions in the REPL loop — arrow-up recall comes along for free.
+    input_session: PromptSession = PromptSession(key_bindings=_input_bindings)
+
     while True:
         try:
-            query = console.input("[bold cyan]you>[/] ").strip()
+            query = input_session.prompt(HTML("<ansicyan><b>you></b></ansicyan> ")).strip()
         except (EOFError, KeyboardInterrupt):
             console.print()
             break
