@@ -21,8 +21,27 @@ BANNER = """[bold]trial-landscape[/] — natural-language research over Clinical
 Ask things like:
   [dim]"what's the phase 3 landscape for KRAS G12C inhibitors, recruiting only"[/]
   [dim]"compare trial activity for sotorasib vs adagrasib over the last 2 years"[/]
-Commands: [bold]/reset[/] clear conversation · [bold]/model[/] switch model ([bold]/model refresh[/] re-scan the catalog) · [bold]/stats[/] cache stats · [bold]/exit[/] quit
-Press [bold]Ctrl+C[/] mid-answer to stop that query and return to the prompt.
+Type [bold]/help[/] for commands and capabilities. Press [bold]Ctrl+C[/] mid-answer to stop that query.
+"""
+
+HELP_TEXT = """[bold]What this does[/]
+Ask a plain-English question about clinical trials — Gemini decides which ClinicalTrials.gov \
+calls to make on your behalf, then writes a natural-language answer citing specific trials.
+
+[bold]Capabilities[/]
+  • [bold]Landscape / momentum[/] — counts by phase, status, sponsor, and year for a condition or \
+drug (e.g. "how crowded is the KRAS G12C phase 3 space")
+  • [bold]Search & browse[/] — list matching trials by condition, intervention, sponsor, phase, \
+status, or location
+  • [bold]Deep-dive[/] — full eligibility criteria, arms, and outcomes for one trial by NCT ID
+
+[bold]Commands[/]
+  [bold]/help[/]               show this message
+  [bold]/reset[/]              clear conversation history
+  [bold]/model[/]              switch models (menu) · [bold]/model <name-or-number>[/] · [bold]/model refresh[/]
+  [bold]/stats[/]              ClinicalTrials.gov cache hit/miss counts for this session
+  [bold]/exit[/], [bold]/quit[/]        quit
+  [bold]Ctrl+C[/]              stop the current query, return to the prompt (doesn't exit)
 """
 
 
@@ -80,6 +99,9 @@ def main() -> None:
             continue
         if query in {"/exit", "/quit"}:
             break
+        if query in {"/help", "/?"}:
+            console.print(HELP_TEXT)
+            continue
         if query == "/reset":
             agent.contents.clear()
             console.print("[dim]conversation cleared[/]")

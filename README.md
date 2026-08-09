@@ -93,6 +93,7 @@ Gemini typically calls `aggregate_trials` once per drug and compares the results
 
 REPL commands:
 
+- `/help` — show commands and capabilities (no API call)
 - `/reset` — clear conversation history (start a fresh topic)
 - `/model` — switch models, interactively or via `/model <name>`; `/model refresh` re-scans the catalog (see Model selection above)
 - `/stats` — show ClinicalTrials.gov cache hit/miss counts for the session
