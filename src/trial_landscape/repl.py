@@ -21,7 +21,8 @@ BANNER = """[bold]trial-landscape[/] — natural-language research over Clinical
 Ask things like:
   [dim]"what's the phase 3 landscape for KRAS G12C inhibitors, recruiting only"[/]
   [dim]"compare trial activity for sotorasib vs adagrasib over the last 2 years"[/]
-Type [bold]/help[/] for commands and capabilities. Press [bold]Ctrl+C[/] mid-answer to stop that query.
+Commands: [bold]/help[/] full guide · [bold]/reset[/] clear conversation · [bold]/model[/] switch model · [bold]/stats[/] cache stats · [bold]/exit[/] quit
+Press [bold]Ctrl+C[/] mid-answer to stop that query and return to the prompt.
 """
 
 HELP_TEXT = """[bold]What this does[/]
