@@ -241,15 +241,23 @@ def markdown_to_plain_text(markdown_text: str, width: int = 88) -> str:
     return "\n".join(lines).strip("\n")
 
 
-def export_conversation_markdown(contents: list[types.Content], model: str) -> str:
-    """Renders the conversation (since the last /reset) as a Markdown transcript:
-    each question, the tool calls Gemini made and their raw results, and the final
-    synthesized answer — in its original Markdown, so tables/formatting survive
-    intact rather than being flattened (contrast with markdown_to_plain_text)."""
+def export_conversation_markdown(
+    contents: list[types.Content], model: str, include_tool_calls: bool = False
+) -> str:
+    """Renders the conversation (since the last /reset) as a Markdown transcript.
+    By default, just questions and final answers (in original Markdown, so
+    tables/formatting survive intact — contrast with markdown_to_plain_text).
+    With include_tool_calls=True, also interleaves the tool calls Gemini made
+    and their raw JSON results — the full reasoning trace, not just the Q&A."""
+    mode_note = (
+        "full trace: questions, tool calls, tool results, and answers"
+        if include_tool_calls
+        else "Q&A only — rerun with `/export --complete` for the full tool-call trace"
+    )
     lines = [
         "# trial-landscape conversation export",
         "",
-        f"_Exported {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} · model: {model}_",
+        f"_Exported {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} · model: {model} · {mode_note}_",
     ]
     for content in contents:
         parts = content.parts or []
@@ -257,27 +265,29 @@ def export_conversation_markdown(contents: list[types.Content], model: str) -> s
             question = "\n".join(p.text for p in parts if p.text)
             if question:
                 lines += ["", "---", "", "## You", "", question]
-            for part in parts:
-                if part.function_response is not None:
-                    fr = part.function_response
-                    lines += [
-                        "",
-                        f"**Result** (`{fr.name}`)",
-                        "```json",
-                        json.dumps(fr.response, indent=2, default=str),
-                        "```",
-                    ]
+            if include_tool_calls:
+                for part in parts:
+                    if part.function_response is not None:
+                        fr = part.function_response
+                        lines += [
+                            "",
+                            f"**Result** (`{fr.name}`)",
+                            "```json",
+                            json.dumps(fr.response, indent=2, default=str),
+                            "```",
+                        ]
         elif content.role == "model":
-            for part in parts:
-                if part.function_call is not None:
-                    fc = part.function_call
-                    lines += [
-                        "",
-                        f"**Tool call:** `{fc.name}`",
-                        "```json",
-                        json.dumps(dict(fc.args or {}), indent=2, default=str),
-                        "```",
-                    ]
+            if include_tool_calls:
+                for part in parts:
+                    if part.function_call is not None:
+                        fc = part.function_call
+                        lines += [
+                            "",
+                            f"**Tool call:** `{fc.name}`",
+                            "```json",
+                            json.dumps(dict(fc.args or {}), indent=2, default=str),
+                            "```",
+                        ]
             answer = "\n".join(p.text for p in parts if p.text)
             if answer:
                 lines += ["", "### Answer", "", answer]

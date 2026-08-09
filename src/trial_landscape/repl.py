@@ -43,7 +43,7 @@ status, or location
 [bold]Commands[/]
   [bold]/help[/]               show this message
   [bold]/copy[/]               copy the latest answer to the clipboard as plain text (tables included)
-  [bold]/export[/] [dim][path][/]      save the conversation since the last /reset as a Markdown file
+  [bold]/export[/]             save Q&A since the last /reset as Markdown; add [bold]--complete[/] for the full tool-call trace; optional path/folder
   [bold]/reset[/]              clear conversation history
   [bold]/model[/]              switch models (menu) · [bold]/model <name-or-number>[/] · [bold]/model refresh[/]
   [bold]/stats[/]              ClinicalTrials.gov cache hit/miss counts for this session
@@ -125,15 +125,18 @@ def main() -> None:
                 console.print("[dim]nothing to export yet — ask a question first[/]")
                 continue
             default_filename = f"trial-landscape-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
-            arg = query[len("/export"):].strip()
+            raw_arg = query[len("/export"):].strip()
+            complete = "--complete" in raw_arg
+            arg = raw_arg.replace("--complete", "").strip()
             path = os.path.expanduser(arg) if arg else default_filename
             if os.path.isdir(path):  # folder given with no filename — auto-name inside it
                 path = os.path.join(path, default_filename)
-            markdown = export_conversation_markdown(agent.contents, agent.model)
+            markdown = export_conversation_markdown(agent.contents, agent.model, include_tool_calls=complete)
             try:
                 with open(path, "w") as f:
                     f.write(markdown)
-                console.print(f"[dim]exported conversation to {os.path.abspath(path)}[/]")
+                kind = "full trace" if complete else "Q&A only"
+                console.print(f"[dim]exported conversation ({kind}) to {os.path.abspath(path)}[/]")
             except OSError as exc:
                 console.print(f"[red]couldn't write export file: {exc}[/]")
             continue

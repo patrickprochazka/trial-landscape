@@ -95,7 +95,7 @@ REPL commands:
 
 - `/help` — show commands and capabilities (no API call)
 - `/copy` — copy the latest answer to the clipboard as plain text; tables become aligned columns, no literal `**`/`#`/`|` markdown syntax
-- `/export [path]` — save the full conversation since the last `/reset` as a Markdown file (questions, tool calls, raw tool results, and answers in original Markdown). `path` is optional and flexible: omit it entirely for an auto-named file (`trial-landscape-export-<timestamp>.md`) in the current directory, give a folder (e.g. `/export ~/Desktop`) to auto-name inside it, or give a full filename to use it exactly. `~` is expanded.
+- `/export [--complete] [path]` — save the conversation since the last `/reset` as a Markdown file. By default it's just questions and final answers (in original Markdown, so tables/formatting survive); add `--complete` to also interleave the tool calls Gemini made and their raw JSON results — the full reasoning trace, not just the Q&A. `path` is optional and flexible: omit it entirely for an auto-named file (`trial-landscape-export-<timestamp>.md`) in the current directory, give a folder (e.g. `/export ~/Desktop`) to auto-name inside it, or give a full filename to use it exactly. `~` is expanded.
 - `/reset` — clear conversation history (start a fresh topic)
 - `/model` — switch models, interactively or via `/model <name>`; `/model refresh` re-scans the catalog (see Model selection above)
 - `/stats` — show ClinicalTrials.gov cache hit/miss counts for the session
