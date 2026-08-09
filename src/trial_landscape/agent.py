@@ -13,6 +13,7 @@ import random
 import re
 import time
 
+import httpx
 from google import genai
 from google.genai import errors, types
 from rich.console import Console
@@ -267,7 +268,10 @@ class Agent:
         )
 
     def _generate(self):
-        """Calls generate_content with exponential backoff on 429 RESOURCE_EXHAUSTED."""
+        """Calls generate_content with exponential backoff on 429 RESOURCE_EXHAUSTED
+        and on transient network errors (dropped/reset connections, timeouts) —
+        the SDK's own retry wrapper doesn't cover the latter, so without this a
+        momentary network blip raises a raw httpx exception and crashes the REPL."""
         delay = BASE_BACKOFF_SECONDS
         for attempt in range(MAX_RETRIES_ON_429 + 1):
             try:
@@ -279,13 +283,19 @@ class Agent:
             except errors.ClientError as exc:
                 if getattr(exc, "code", None) != 429 or attempt == MAX_RETRIES_ON_429:
                     raise
-                sleep_for = delay + random.uniform(0, 0.5 * delay)
-                self.console.print(
-                    f"[yellow]rate limited (429) — backing off {sleep_for:.1f}s "
-                    f"(attempt {attempt + 1}/{MAX_RETRIES_ON_429})[/]"
-                )
-                time.sleep(sleep_for)
-                delay = min(delay * 2, 60.0)
+                reason = "rate limited (429)"
+            except httpx.TransportError as exc:
+                if attempt == MAX_RETRIES_ON_429:
+                    raise
+                reason = f"network error ({exc})"
+
+            sleep_for = delay + random.uniform(0, 0.5 * delay)
+            self.console.print(
+                f"[yellow]{reason} — backing off {sleep_for:.1f}s "
+                f"(attempt {attempt + 1}/{MAX_RETRIES_ON_429})[/]"
+            )
+            time.sleep(sleep_for)
+            delay = min(delay * 2, 60.0)
         raise RuntimeError("unreachable")  # loop always returns or raises
 
     def ask(self, user_query: str) -> str | None:
@@ -306,6 +316,10 @@ class Agent:
                     return f"[Gemini API error {getattr(exc, 'code', '?')}] {exc}"
                 except errors.ServerError as exc:
                     return f"[Gemini server error] {exc}"
+                except httpx.TransportError as exc:
+                    return f"[Network error talking to Gemini] {exc}"
+                except Exception as exc:  # noqa: BLE001 - final safety net; never let an unexpected error crash the REPL
+                    return f"[Unexpected error calling Gemini] {exc}"
 
                 model_content = response.candidates[0].content if response.candidates else None
                 if model_content is not None:
