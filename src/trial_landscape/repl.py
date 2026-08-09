@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 
+import pyperclip
 from dotenv import load_dotenv
 from rich.console import Console
 
@@ -12,6 +14,8 @@ from trial_landscape.agent import (
     ModelCache,
     create_client,
     discover_working_models,
+    export_conversation_markdown,
+    markdown_to_plain_text,
     prompt_for_model,
     resolve_startup_model,
     verify_model,
@@ -21,7 +25,7 @@ BANNER = """[bold]trial-landscape[/] — natural-language research over Clinical
 Ask things like:
   [dim]"what's the phase 3 landscape for KRAS G12C inhibitors, recruiting only"[/]
   [dim]"compare trial activity for sotorasib vs adagrasib over the last 2 years"[/]
-Commands: [bold]/help[/] full guide · [bold]/reset[/] clear conversation · [bold]/model[/] switch model · [bold]/stats[/] cache stats · [bold]/exit[/] quit
+Commands: [bold]/help[/] full guide · [bold]/copy[/] copy last answer · [bold]/export[/] save conversation · [bold]/reset[/] clear conversation · [bold]/model[/] switch model · [bold]/stats[/] cache stats · [bold]/exit[/] quit
 Press [bold]Ctrl+C[/] mid-answer to stop that query and return to the prompt.
 """
 
@@ -38,6 +42,8 @@ status, or location
 
 [bold]Commands[/]
   [bold]/help[/]               show this message
+  [bold]/copy[/]               copy the latest answer to the clipboard as plain text (tables included)
+  [bold]/export[/] [dim][path][/]      save the conversation since the last /reset as a Markdown file
   [bold]/reset[/]              clear conversation history
   [bold]/model[/]              switch models (menu) · [bold]/model <name-or-number>[/] · [bold]/model refresh[/]
   [bold]/stats[/]              ClinicalTrials.gov cache hit/miss counts for this session
@@ -102,6 +108,32 @@ def main() -> None:
             break
         if query in {"/help", "/?"}:
             console.print(HELP_TEXT)
+            continue
+        if query == "/copy":
+            if agent.last_answer is None:
+                console.print("[dim]nothing to copy yet — ask a question first[/]")
+                continue
+            plain_text = markdown_to_plain_text(agent.last_answer)
+            try:
+                pyperclip.copy(plain_text)
+                console.print("[dim]copied latest answer to clipboard (plain text)[/]")
+            except pyperclip.PyperclipException as exc:
+                console.print(f"[red]couldn't copy to clipboard: {exc}[/]")
+            continue
+        if query == "/export" or query.startswith("/export "):
+            if not agent.contents:
+                console.print("[dim]nothing to export yet — ask a question first[/]")
+                continue
+            path = query[len("/export"):].strip()
+            if not path:
+                path = f"trial-landscape-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
+            markdown = export_conversation_markdown(agent.contents, agent.model)
+            try:
+                with open(path, "w") as f:
+                    f.write(markdown)
+                console.print(f"[dim]exported conversation to {os.path.abspath(path)}[/]")
+            except OSError as exc:
+                console.print(f"[red]couldn't write export file: {exc}[/]")
             continue
         if query == "/reset":
             agent.contents.clear()

@@ -94,6 +94,8 @@ Gemini typically calls `aggregate_trials` once per drug and compares the results
 REPL commands:
 
 - `/help` — show commands and capabilities (no API call)
+- `/copy` — copy the latest answer to the clipboard as plain text; tables become aligned columns, no literal `**`/`#`/`|` markdown syntax
+- `/export [path]` — save the full conversation since the last `/reset` as a Markdown file (questions, tool calls, raw tool results, and answers in original Markdown). Defaults to `trial-landscape-export-<timestamp>.md` in the current directory if no path is given.
 - `/reset` — clear conversation history (start a fresh topic)
 - `/model` — switch models, interactively or via `/model <name>`; `/model refresh` re-scans the catalog (see Model selection above)
 - `/stats` — show ClinicalTrials.gov cache hit/miss counts for the session

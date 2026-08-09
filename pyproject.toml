@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "google-genai>=1.15.0",
     "httpx>=0.27.0",
+    "pyperclip>=1.9.0",
     "python-dotenv>=1.0.0",
     "rich>=13.7.0",
 ]

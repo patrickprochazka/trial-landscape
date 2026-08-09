@@ -12,6 +12,8 @@ import json
 import random
 import re
 import time
+from datetime import datetime, timezone
+from io import StringIO
 
 import httpx
 from google import genai
@@ -226,6 +228,62 @@ def _to_function_declaration(tool: dict) -> types.FunctionDeclaration:
     )
 
 
+def markdown_to_plain_text(markdown_text: str, width: int = 88) -> str:
+    """Renders markdown — including GFM tables — into clean plain text suitable for
+    pasting into an email or doc: no literal '**'/'#'/'|' syntax, tables become
+    aligned columns with a separator line. Reuses the same Rich Markdown renderer
+    as the terminal display (see Agent.render_answer), just captured to a string
+    with color/terminal styling off instead of printed."""
+    buf = StringIO()
+    capture_console = Console(file=buf, width=width, no_color=True, force_terminal=False)
+    capture_console.print(Markdown(markdown_text))
+    lines = [line.rstrip() for line in buf.getvalue().splitlines()]
+    return "\n".join(lines).strip("\n")
+
+
+def export_conversation_markdown(contents: list[types.Content], model: str) -> str:
+    """Renders the conversation (since the last /reset) as a Markdown transcript:
+    each question, the tool calls Gemini made and their raw results, and the final
+    synthesized answer — in its original Markdown, so tables/formatting survive
+    intact rather than being flattened (contrast with markdown_to_plain_text)."""
+    lines = [
+        "# trial-landscape conversation export",
+        "",
+        f"_Exported {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} · model: {model}_",
+    ]
+    for content in contents:
+        parts = content.parts or []
+        if content.role == "user":
+            question = "\n".join(p.text for p in parts if p.text)
+            if question:
+                lines += ["", "---", "", "## You", "", question]
+            for part in parts:
+                if part.function_response is not None:
+                    fr = part.function_response
+                    lines += [
+                        "",
+                        f"**Result** (`{fr.name}`)",
+                        "```json",
+                        json.dumps(fr.response, indent=2, default=str),
+                        "```",
+                    ]
+        elif content.role == "model":
+            for part in parts:
+                if part.function_call is not None:
+                    fc = part.function_call
+                    lines += [
+                        "",
+                        f"**Tool call:** `{fc.name}`",
+                        "```json",
+                        json.dumps(dict(fc.args or {}), indent=2, default=str),
+                        "```",
+                    ]
+            answer = "\n".join(p.text for p in parts if p.text)
+            if answer:
+                lines += ["", "### Answer", "", answer]
+    return "\n".join(lines).strip("\n") + "\n"
+
+
 class Agent:
     def __init__(self, model: str, client: genai.Client | None = None, console: Console | None = None) -> None:
         self.console = console or Console()
@@ -240,6 +298,7 @@ class Agent:
         )
         self.ctgov = CTGovClient()
         self.contents: list[types.Content] = []
+        self.last_answer: str | None = None
 
     def _print_tool_call(self, name: str, args: dict) -> None:
         pretty_args = json.dumps(args, indent=2)
@@ -350,4 +409,5 @@ class Agent:
             return None
 
     def render_answer(self, text: str) -> None:
+        self.last_answer = text
         self.console.print(Panel(Markdown(text), title="[bold green]answer[/]", border_style="green"))
