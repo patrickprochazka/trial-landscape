@@ -57,7 +57,7 @@ The scan is a one-time cost at startup (a few seconds). The verified list is cac
 Override the startup default with `GEMINI_MODEL` (verified the same way):
 
 ```bash
-GEMINI_MODEL=gemini-2.5-flash uv run trial-landscape
+GEMINI_MODEL=gemini-3.5-flash uv run trial-landscape
 ```
 
 Switch models at any point with `/model`:
@@ -74,7 +74,7 @@ model [1]> 2
 using model: gemini-3.6-flash
 ```
 
-- `/model <name>` — jump straight to a model by name, e.g. `/model gemini-2.5-flash`. Verified before committing; reverts with a clear error if it doesn't work.
+- `/model <name>` — jump straight to a model by name, e.g. `/model gemini-3.5-flash`. Verified before committing; reverts with a clear error if it doesn't work.
 - `/model refresh` — re-scans the catalog, e.g. to pick up a model that's appeared since startup.
 
 ## Usage
