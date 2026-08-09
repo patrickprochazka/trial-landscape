@@ -45,24 +45,22 @@ That's it — `uv run` resolves dependencies into an ephemeral environment on fi
 
 ## Model selection
 
-There is no hardcoded model list. On startup, the app discovers every Flash-family, text/function-calling-capable model your account's live catalog exposes (`client.models.list()`), pings each one with a real `generate_content` call to confirm it actually works (a catalog listing is *not* reliable proof of that — see caveat below), and picks the best available as the default — Google's own rolling `gemini-flash-latest` alias if it works (it always tracks whatever they currently recommend), otherwise the newest verified pinned version.
-
-Because discovery is fully dynamic, a future model release (e.g. `gemini-3.7-flash`) shows up automatically the moment it appears in the catalog — no code change needed here.
+There's no hardcoded model list. On startup, the app discovers every Flash-family, function-calling-capable model your account's catalog exposes, then pings each one with a real `generate_content` call to confirm it actually works — a catalog listing alone isn't proof of that; some models appear in `client.models.list()` but return a live 404 at call time. The default is Google's `gemini-flash-latest` alias if it works (it always tracks their current recommendation), otherwise the newest verified pinned version. Because discovery is dynamic, a future release (e.g. `gemini-3.7-flash`) shows up automatically once it's in the catalog — no code change needed.
 
 ```
 loading models…
 using model: gemini-flash-latest (switch anytime with /model)
 ```
 
-The `loading models…` spinner covers the whole scan (~6s, ~15 pings against the real catalog, silently) — a deliberate one-time tradeoff for accuracy over speed. The resulting verified list is cached for the rest of the session: `/model` just lets you pick from it, no re-scanning.
+The scan is a one-time cost at startup (a few seconds). The verified list is cached for the session, so `/model` picks from it instantly with no re-scanning.
 
-Set `GEMINI_MODEL` before launching to override the startup default (e.g. for scripted runs) — it's verified the same way, with the same fallback if it doesn't work:
+Override the startup default with `GEMINI_MODEL` (verified the same way):
 
 ```bash
 GEMINI_MODEL=gemini-2.5-flash uv run trial-landscape
 ```
 
-Switch models at **any point** during a session with `/model` — mid-conversation, between questions, whenever. It picks from the already-discovered list (instant, no network calls):
+Switch models at any point with `/model`:
 
 ```
 you> /model
@@ -76,10 +74,8 @@ model [1]> 2
 using model: gemini-3.6-flash
 ```
 
-- `/model <name>` — skip the menu and jump straight to a model by name (e.g. `/model gemini-2.5-flash`). Still verified before committing, and reverts with a clear error rather than switching to something broken.
-- `/model refresh` — re-runs the full catalog discovery (another ~15-ping scan), for a long-running session where you want to pick up a model that's appeared since you started (e.g. a new release, or access that's since been granted).
-
-**A caveat learned from live testing, not assumed:** `client.models.list()` is not a reliable signal of whether a model will actually accept `generate_content` calls for your account — the two can disagree. In testing, `gemini-2.5-flash` and every `gemini-2.0-flash*` model showed up in the catalog but returned a live `404 "no longer available to new users"` on a newly created API key. That's exactly why model selection here pings with a real request instead of trusting the listing, and why we don't label any model "cheaper" or "free-tier friendly" — that's account-dependent and unverifiable in general.
+- `/model <name>` — jump straight to a model by name, e.g. `/model gemini-2.5-flash`. Verified before committing; reverts with a clear error if it doesn't work.
+- `/model refresh` — re-scans the catalog, e.g. to pick up a model that's appeared since startup.
 
 ## Usage
 
